@@ -38,10 +38,6 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
     "nodeViewMode",
     "modern"
   );
-  const [enableVirtualScroll] = useLocalStorage<boolean>(
-    "enableVirtualScroll",
-    true
-  );
   
   // 确保 viewMode 总是有效值
   const validViewModes: ViewMode[] = ["modern", "compact", "classic", "detailed", "task", "earth"];
