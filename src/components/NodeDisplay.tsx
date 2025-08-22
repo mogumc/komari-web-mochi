@@ -21,7 +21,6 @@ import NodeCompactCard from "./NodeCompactCard";
 import TaskDisplay from "./TaskDisplay";
 import NodeEarthView from "./NodeEarthView";
 import ViewModeSelector from "./ViewModeSelector";
-import ModernGridVirtual from "./ModernGridVirtual";
 
 export type ViewMode = "modern" | "compact" | "classic" | "detailed" | "task" | "earth";
 
