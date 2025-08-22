@@ -1,20 +1,16 @@
 /* Modern Card 性能优化样式 */
 
-/* 使用 contain 属性限制重排影响范围 */
 .modern-card-wrapper {
   contain: layout style paint;
   will-change: auto;
   isolation: isolate;
 }
 
-/* 移除或减少动画 */
 .modern-card {
-  /* 使用 transform 代替其他属性实现动画，避免重排 */
-  transform: translateZ(0); /* 开启硬件加速 */
-  backface-visibility: hidden; /* 避免闪烁 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-/* 优化 hover 效果 - 只使用 transform 和 opacity */
 .modern-card-hover {
   transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
@@ -24,14 +20,12 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 禁用 Firefox 下的 backdrop-filter */
 @-moz-document url-prefix() {
   .modern-card {
     backdrop-filter: none !important;
   }
 }
 
-/* 优化进度条 - 使用 CSS 变量 */
 .usage-fill-modern {
   width: var(--progress-width, 0%);
   background: linear-gradient(
@@ -45,25 +39,21 @@
   will-change: width;
 }
 
-/* 使用 CSS Grid 替代 Flexbox 减少重排 */
 .modern-card-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.5rem;
 }
 
-/* 优化标签动画 */
 .tag-scale-modern {
   transform-origin: left center;
-  transition: none; /* 移除动画 */
+  transition: none;
 }
 
-/* 减少阴影复杂度 */
 .modern-card-shadow {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-/* 使用 CSS 变量缓存常用值 */
 .modern-card {
   --card-padding: 1rem;
   --card-gap: 0.5rem;
@@ -71,13 +61,11 @@
   --progress-transition: width 0.15s ease-out;
 }
 
-/* 优化文本渲染 */
 .modern-card-text {
   text-rendering: optimizeSpeed;
   -webkit-font-smoothing: antialiased;
 }
 
-/* 禁用不必要的动画 */
 @media (prefers-reduced-motion: reduce) {
   .modern-card * {
     animation-duration: 0.01ms !important;
@@ -86,95 +74,49 @@
   }
 }
 
-/* 虚拟滚动容器优化 */
-.virtual-scroll-container {
-  contain: strict;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
-}
-
-/* 虚拟滚动平滑度优化 */
-.virtual-scroll-container::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.virtual-scroll-container::-webkit-scrollbar-track {
-  background: var(--accent-3);
-  border-radius: 4px;
-}
-
-.virtual-scroll-container::-webkit-scrollbar-thumb {
-  background: var(--accent-6);
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.virtual-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-7);
-}
-
-/* Firefox 滚动条样式 */
-.virtual-scroll-container {
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-6) var(--accent-3);
-}
-
-/* 优化大列表性能 */
 .node-list-optimized {
   content-visibility: auto;
-  contain-intrinsic-size: auto 400px; /* 设置默认高度估计 */
+  contain-intrinsic-size: auto 400px;
 }
 
-/* 优化数字更新时的闪烁 */
 .modern-card-text {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 单列布局 - 小于860px (859÷430=1.99) */
 @media (max-width: 859px) {
   .modern-card {
-    /* 强制GPU加速 */
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     perspective: 1000px;
     -webkit-perspective: 1000px;
   }
-  
+
   .modern-card-link {
-    /* 预加载优化 */
     will-change: transform;
     contain: layout style paint;
   }
-  
-  /* 减少移动端动画复杂度 */
+
   .modern-card-hover {
     transition: transform 0.1s ease-out;
   }
-  
+
   .modern-card-hover:active {
     transform: scale(0.98);
   }
-  
-  /* 禁用hover效果，使用active */
+
   .modern-card-hover:hover {
     transform: none;
   }
-  
-  /* 优化滚动性能 */
+
   .gap-4 {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
-  
 }
 
-/* 预渲染优化 */
 .modern-card-link[data-preload="true"] {
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;

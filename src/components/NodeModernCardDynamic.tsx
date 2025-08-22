@@ -1,7 +1,17 @@
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import { Card, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
-import { Activity, HardDrive, Cpu, MemoryStick, Network, Clock, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import {
+  Activity,
+  HardDrive,
+  Cpu,
+  MemoryStick,
+  TrendingUp,
+  Network,
+  TrendingDown,
+  Clock,
+  Zap
+} from "lucide-react";
 import type { NodeBasicInfo } from "@/contexts/NodeListContext";
 import type { Record } from "@/types/LiveData";
 import { formatUptime } from "./Node";
@@ -13,19 +23,18 @@ interface ModernCardDynamicProps {
   live: Record | undefined;
   online: boolean;
   forceShowTrafficText?: boolean;
-  children: React.ReactNode; // 静态内容插槽
+  children: React.ReactNode;
 }
 
-const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({ 
-  basic, 
-  live, 
-  online, 
+const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
+  basic,
+  live,
+  online,
   forceShowTrafficText = false,
   children
 }) => {
   const { t } = useTranslation();
 
-  // 默认值
   const defaultLive: Record = {
     cpu: { usage: 0 },
     ram: { used: 0 },
@@ -42,11 +51,9 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
 
   const liveData = live || defaultLive;
 
-  // 直接计算使用率百分比
   const memoryPercent = basic.mem_total ? (liveData.ram.used / basic.mem_total) * 100 : 0;
   const diskPercent = basic.disk_total ? (liveData.disk.used / basic.disk_total) * 100 : 0;
 
-  // 使用缓存的流量计算
   const trafficStats = getTrafficStats(
     liveData.network.totalUp,
     liveData.network.totalDown,
@@ -56,7 +63,6 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
   const trafficPercentage = trafficStats.percentage;
   const trafficUsage = trafficStats.usage;
 
-  // 缓存静态的格式化值
   const staticFormattedBytes = useMemo(() => ({
     ramTotal: formatBytes(basic.mem_total),
     ramTotalCompact: formatBytes(basic.mem_total, true),
@@ -66,7 +72,6 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
     trafficLimitCompact: formatBytes(basic.traffic_limit || 0, true)
   }), [basic.mem_total, basic.disk_total, basic.traffic_limit]);
 
-  // 进度条颜色函数
   const getProgressColor = (value: number) => {
     if (value > 90) return "#ef4444";
     if (value > 70) return "#f59e0b";
@@ -74,7 +79,6 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
     return "#10b981";
   };
 
-  // 进度条颜色
   const progressColors = {
     cpu: getProgressColor(liveData.cpu.usage),
     memory: getProgressColor(memoryPercent),
@@ -82,7 +86,65 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
     traffic: getProgressColor(trafficPercentage)
   };
 
-  // 动态计算状态颜色
+const StatBlock = memo(({ label, value, usage, color, icon, unit = "%", smallNote}: {
+  label: string;
+  value: number;
+  usage: number;
+  color: string;
+  icon: React.ReactNode;
+  unit?: string;
+  smallNote?: React.ReactNode;
+}) => {
+    const finalUsage = Math.min(100, Math.max(0, usage));
+
+    return (
+      <div
+        className="bg-accent-2/50 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-accent-4 hover:bg-accent-3/50 min-w-0"
+        style={{
+          contain: "layout style paint",
+          contentVisibility: "auto",
+          containIntrinsicSize: "auto 100px",
+        }}
+      >
+        <Flex justify="between" align="center" mb="2">
+          <Flex gap="1" align="center">
+            {icon}
+            <Text size="1" weight="medium">{label}</Text>
+          </Flex>
+          <Text size="2" weight="bold" style={{ color }}>
+            {value.toFixed(1)}{unit}
+          </Text>
+        </Flex>
+        <div className="w-full bg-accent-4 rounded-full h-2 overflow-hidden">
+          <div
+            style={{
+              transform: `scaleX(${finalUsage / 100})`,
+              transformOrigin: "left center",
+              height: "100%",
+              background: color,
+              borderRadius: "9999px",
+              transition: "transform 0.25s ease-out",
+              willChange: "transform"
+            }}
+          />
+        </div>
+        {smallNote && (
+          <Text size="1" color="gray" className="mt-1 hidden sm:block">
+            {smallNote}
+          </Text>
+        )}
+      </div>
+    );
+  }, (prev, next) => {
+    return (
+      prev.label === next.label &&
+      prev.value === next.value &&
+      prev.usage === next.usage &&
+      prev.color === next.color &&
+      prev.unit === next.unit
+    );
+  });
+
   const getStatusColor = () => {
     if (!online) return "from-gray-500/5 to-gray-600/5";
     if (liveData.cpu.usage > 90 || memoryPercent > 90) {
@@ -95,14 +157,13 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
   };
 
   const getStatusGlow = () => {
-    if (!online) return "";
-    if (liveData.cpu.usage > 90 || memoryPercent > 90) {
-      return "shadow-lg shadow-red-500/20";
-    }
-    if (liveData.cpu.usage > 70 || memoryPercent > 70) {
-      return "shadow-lg shadow-orange-500/20";
-    }
-    return "shadow-lg shadow-green-500/20";
+    return online
+      ? liveData.cpu.usage > 90 || memoryPercent > 90
+        ? "shadow-lg shadow-red-500/20"
+        : liveData.cpu.usage > 70 || memoryPercent > 70
+          ? "shadow-lg shadow-orange-500/20"
+          : "shadow-lg shadow-green-500/20"
+      : "";
   };
 
   return (
@@ -120,8 +181,8 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
         transformOrigin: 'center'
       }}
     >
-      {/* 状态指示条 */}
-      <div 
+      {/* 状态条 */}
+      <div
         className={`absolute top-0 left-0 right-0 h-1 ${
           online ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-green-500' : 'bg-gray-500'
         }`}
@@ -130,73 +191,39 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
         }}
       />
 
-      {/* 主体内容 */}
       <Flex direction="column" gap="3" className="p-3 sm:p-4 relative z-10">
-        {/* 静态内容插槽（包含头部信息） */}
         {children}
 
-        {/* 资源使用情况网格 - 移动端 2x2 紧凑布局，桌面端 2x2 */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 min-w-0 relative">
-          {/* CPU 使用率 */}
-          <div className="bg-accent-2/50 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-accent-4 hover:bg-accent-3/50 min-w-0">
-            <Flex justify="between" align="center" mb="2">
-              <Flex gap="1" align="center">
-                <Cpu size={14} className="text-accent-10" />
-                <Text size="1" weight="medium">CPU</Text>
-              </Flex>
-              <Text size="2" weight="bold" style={{ color: progressColors.cpu }}>
-                {liveData.cpu.usage.toFixed(1)}%
-              </Text>
-            </Flex>
-            <div className="w-full bg-accent-4 rounded-full h-2 overflow-hidden">
-              <div
-                className="usage-fill-modern h-full rounded-full relative"
-                style={{
-                  '--progress-width': `${liveData.cpu.usage}%`,
-                  '--progress-color': progressColors.cpu
-                } as React.CSSProperties}
-              />
-            </div>
-            {basic.cpu_cores && (
-              <Text size="1" color="gray" className="mt-1 hidden sm:block">
-                {basic.cpu_cores} Cores
-              </Text>
-            )}
-          </div>
+        {/* 资源使用网格 */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 min-w-0">
+          {/* CPU */}
+          <StatBlock
+            label="CPU"
+            value={liveData.cpu.usage}
+            usage={liveData.cpu.usage}
+            color={progressColors.cpu}
+            icon={<Cpu size={14} className="text-accent-10" />}
+            smallNote={basic.cpu_cores?.toString() && `${basic.cpu_cores?.toString()} cores`}
+          />
 
-          {/* 内存使用率 */}
-          <div className="bg-accent-2/50 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-accent-4 hover:bg-accent-3/50 min-w-0">
-            <Flex justify="between" align="center" mb="2">
-              <Flex gap="1" align="center">
-                <MemoryStick size={14} className="text-accent-10" />
-                <Text size="1" weight="medium">RAM</Text>
-              </Flex>
-              <Text size="2" weight="bold" style={{ color: progressColors.memory }}>
-                {memoryPercent.toFixed(1)}%
-              </Text>
-            </Flex>
-            <div className="w-full bg-accent-4 rounded-full h-2 overflow-hidden">
-              <div
-                className="usage-fill-modern h-full rounded-full relative"
-                style={{
-                  '--progress-width': `${memoryPercent}%`,
-                  '--progress-color': progressColors.memory
-                } as React.CSSProperties}
-              />
-            </div>
-            <div className="mt-1 text-[10px] sm:text-sm whitespace-nowrap overflow-hidden">
-              <div className="transform origin-left scale-[0.85] sm:scale-100 inline-block">
-                <Text size="1" color="gray">
-                  <span className="inline sm:hidden">{formatBytes(liveData.ram.used, true)}/{staticFormattedBytes.ramTotalCompact}</span>
-                  <span className="hidden sm:inline">{formatBytes(liveData.ram.used)} / {staticFormattedBytes.ramTotal}</span>
-                </Text>
-              </div>
-            </div>
-          </div>
+          {/* 内存 */}
+          <StatBlock
+            label="RAM"
+            value={memoryPercent}
+            usage={memoryPercent}
+            color={progressColors.memory}
+            unit="%"
+            icon={<MemoryStick size={14} className="text-accent-10" />}
+            smallNote={
+              <span className="hidden sm:inline">
+                {formatBytes(liveData.ram.used)} / {staticFormattedBytes.ramTotal}
+              </span>
+            }
+          />
 
-          {/* 磁盘使用率和总流量 */}
-          <div className="bg-accent-2/50 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-accent-4 hover:bg-accent-3/50 min-w-0 flex flex-col gap-2 min-h-[9rem] sm:min-h-[10rem]">
-            {/* 磁盘使用率 */}
+          {/* 磁盘和流量 */}
+          <div className="bg-accent-2/50 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-accent-4 hover:bg-accent-3/50 min-w-0 flex flex-col gap-2 h-full">
+            {/* 磁盘 */}
             <div className="flex-1">
               <Flex justify="between" align="center" mb="1">
                 <Flex gap="1" align="center">
@@ -209,26 +236,27 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
               </Flex>
               <div className="w-full bg-accent-4 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="usage-fill-modern h-full rounded-full relative"
                   style={{
-                    '--progress-width': `${diskPercent}%`,
-                    '--progress-color': progressColors.disk
-                  } as React.CSSProperties}
+                    transform: `scaleX(${diskPercent / 100})`,
+                    transformOrigin: "left center",
+                    height: "100%",
+                    background: progressColors.disk,
+                    borderRadius: "9999px",
+                    transition: "transform 0.25s ease-out",
+                    willChange: "transform"
+                  }}
                 />
               </div>
               <div className="mt-0.5 text-[10px] sm:text-xs whitespace-nowrap overflow-hidden">
-                <div className="transform origin-left scale-[0.75] sm:scale-100 inline-block">
-                  <Text size="1" color="gray">
-                    <span className="inline sm:hidden">{formatBytes(liveData.disk.used, true)}/{staticFormattedBytes.diskTotalCompact}</span>
-                    <span className="hidden sm:inline">{formatBytes(liveData.disk.used)} / {staticFormattedBytes.diskTotal}</span>
-                  </Text>
-                </div>
+                <Text size="1" color="gray">
+                  {formatBytes(liveData.disk.used)} / {staticFormattedBytes.diskTotal}
+                </Text>
               </div>
             </div>
             
             {/* 分隔线 */}
             <div className="w-full h-[1px] bg-accent-4" />
-            
+
             {/* 总流量 */}
             <div className="flex-1 min-h-[4rem]">
               <Flex justify="between" align="center" mb="1">
@@ -318,35 +346,25 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
           </div>
         </div>
 
-        {/* 底部信息 - 移动端显示但缩小 */}
+        {/* 底部信息 */}
         <Flex justify="between" align="center" className="pt-2 sm:pt-3 border-t border-accent-4">
-          <Flex gap="2 sm:gap-3" align="center" className="min-w-0 flex-1">
-            <Flex gap="1" align="center" className="min-w-0">
-              <Clock size={10} className="text-accent-10 sm:w-3 sm:h-3 flex-shrink-0" />
-              <div className="transform origin-left scale-[0.8] sm:scale-100 inline-block">
-                <Text size="1" color="gray" className="whitespace-nowrap">
-                  {online ? formatUptime(liveData.uptime, t) : t("nodeCard.offline")}
-                </Text>
-              </div>
-            </Flex>
+          <Flex gap="2" align="center">
+            <Clock size={10} className="text-accent-10" />
+            <Text size="1" color="gray">
+              {online ? formatUptime(liveData.uptime, t) : t("nodeCard.offline")}
+            </Text>
           </Flex>
           {online && (
-            <Flex gap="2 sm:gap-3" align="center" className="flex-shrink-0">
-              <Flex gap="1" align="center" className="min-w-0 mr-0 sm:mr-3">
-                <Zap size={10} className="text-yellow-500 sm:w-3 sm:h-3 flex-shrink-0" />
-                <div className="transform origin-left scale-[0.8] sm:scale-100 inline-block">
-                  <Text size="1" color="gray" className="whitespace-nowrap">
-                    Load: {liveData.load?.load1?.toFixed(2) || "0.00"}
-                  </Text>
-                </div>
-              </Flex>
-              <Flex gap="1" align="center" className="flex-shrink-0">
-                <Activity size={10} className="text-green-500 sm:w-3 sm:h-3" />
-                <div className="transform origin-right scale-[0.8] sm:scale-100 inline-block">
-                  <Text size="1" weight="medium" className="text-green-600 whitespace-nowrap">
-                    Active
-                  </Text>
-                </div>
+            <Flex gap="2" align="center">
+              <Zap size={10} className="text-yellow-500" />
+              <Text size="1" color="gray">
+                Load: {liveData.load?.load1?.toFixed(2) || "0.00"}
+              </Text>
+              <Flex gap="1" align="center">
+                <Activity size={10} className="text-green-500" />
+                <Text size="1" weight="medium" className="text-green-600">
+                  Active
+                </Text>
               </Flex>
             </Flex>
           )}
@@ -356,29 +374,24 @@ const ModernCardDynamicComponent: React.FC<ModernCardDynamicProps> = ({
   );
 };
 
-// 动态内容比较函数 - 只比较实际显示的数据
+// 使用 React.memo 控制整体渲染优化
 export const ModernCardDynamic = React.memo(ModernCardDynamicComponent, (prev, next) => {
-  // 基本信息变化需要重新渲染（影响计算）
   if (prev.basic.uuid !== next.basic.uuid) return false;
   if (prev.basic.mem_total !== next.basic.mem_total) return false;
   if (prev.basic.disk_total !== next.basic.disk_total) return false;
   if (prev.basic.traffic_limit !== next.basic.traffic_limit) return false;
   if (prev.basic.traffic_limit_type !== next.basic.traffic_limit_type) return false;
   if (prev.basic.cpu_cores !== next.basic.cpu_cores) return false;
-  
-  // 在线状态变化需要重新渲染
+
   if (prev.online !== next.online) return false;
-  
-  // 强制显示流量文本的设置
   if (prev.forceShowTrafficText !== next.forceShowTrafficText) return false;
-  
-  // 比较实时数据的关键字段
+
   if (!prev.live && !next.live) return true;
   if (!prev.live || !next.live) return false;
-  
+
   const prevLive = prev.live;
   const nextLive = next.live;
-  
+
   return (
     prevLive.cpu.usage === nextLive.cpu.usage &&
     prevLive.ram.used === nextLive.ram.used &&
