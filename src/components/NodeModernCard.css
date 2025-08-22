@@ -172,26 +172,6 @@
     scroll-behavior: smooth;
   }
   
-  /* 单列布局 - 宽度不足860px时显示单列并填充整个宽度 */
-  .modern-grid-container {
-    grid-template-columns: 1fr !important;
-    /* 减小间距以适应移动端 */
-    gap: 0.75rem !important;
-    padding: 0.75rem !important;
-  }
-  
-  .modern-grid-container {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 1rem !important;
-    padding: 1rem !important;
-  }
-
-  /* 确保卡片在移动端有正确的初始尺寸 */
-  .modern-grid-container > div {
-    width: 100%;
-    min-width: 0;
-  }
-  
 }
 
 /* 预渲染优化 */
