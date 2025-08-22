@@ -43,22 +43,6 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
     true
   );
   
-  // 检测是否为电脑端（>=860px）
-  const [isDesktop, setIsDesktop] = useState(() => 
-    typeof window !== 'undefined' ? window.innerWidth >= 860 : false
-  );
-  
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 860);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    handleResize(); // 初始化
-    
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
   // 确保 viewMode 总是有效值
   const validViewModes: ViewMode[] = ["modern", "compact", "classic", "detailed", "task", "earth"];
   const safeViewMode = validViewModes.includes(viewMode) ? viewMode : "modern";
@@ -294,12 +278,7 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
       ) : (
         <>
           {safeViewMode === "modern" && (
-            // 移动端（<860px）不使用虚拟滚动，电脑端（>=860px）一律使用虚拟滚动
-            (enableVirtualScroll && isDesktop) ? (
-              <ModernGridVirtual nodes={filteredNodes} liveData={liveData} forceShowTrafficText={forceShowTrafficText} />
-            ) : (
-              <ModernGrid nodes={filteredNodes} liveData={liveData} forceShowTrafficText={forceShowTrafficText} />
-            )
+            <ModernGrid nodes={filteredNodes} liveData={liveData} forceShowTrafficText={forceShowTrafficText} />
           )}
           {safeViewMode === "compact" && (
             <CompactList nodes={filteredNodes} liveData={liveData} />
