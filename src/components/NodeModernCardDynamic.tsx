@@ -348,23 +348,33 @@ const StatBlock = memo(({ label, value, usage, color, icon, unit = "%", smallNot
 
         {/* 底部信息 */}
         <Flex justify="between" align="center" className="pt-2 sm:pt-3 border-t border-accent-4">
-          <Flex gap="2" align="center">
-            <Clock size={10} className="text-accent-10" />
-            <Text size="1" color="gray">
-              {online ? formatUptime(liveData.uptime, t) : t("nodeCard.offline")}
-            </Text>
+          <Flex gap="2 sm:gap-3" align="center" className="min-w-0 flex-1">
+            <Flex gap="1" align="center" className="min-w-0">
+              <Clock size={10} className="text-accent-10 sm:w-3 sm:h-3 flex-shrink-0" />
+              <div className="transform origin-left scale-[0.8] sm:scale-100 inline-block">
+                <Text size="1" color="gray" className="whitespace-nowrap">
+                  {online ? formatUptime(liveData.uptime, t) : t("nodeCard.offline")}
+                </Text>
+              </div>
+            </Flex>
           </Flex>
           {online && (
-            <Flex gap="2" align="center">
-              <Zap size={10} className="text-yellow-500" />
-              <Text size="1" color="gray">
-                Load: {liveData.load?.load1?.toFixed(2) || "0.00"}
-              </Text>
-              <Flex gap="1" align="center">
-                <Activity size={10} className="text-green-500" />
-                <Text size="1" weight="medium" className="text-green-600">
-                  Active
-                </Text>
+            <Flex gap="2 sm:gap-3" align="center" className="flex-shrink-0">
+              <Flex gap="1" align="center" className="min-w-0 mr-0 sm:mr-3">
+                <Zap size={10} className="text-yellow-500 sm:w-3 sm:h-3 flex-shrink-0" />
+                <div className="transform origin-left scale-[0.8] sm:scale-100 inline-block">
+                  <Text size="1" color="gray" className="whitespace-nowrap">
+                    Load: {liveData.load?.load1?.toFixed(2) || "0.00"}
+                  </Text>
+                </div>
+              </Flex>
+              <Flex gap="1" align="center" className="flex-shrink-0">
+                <Activity size={10} className="text-green-500 sm:w-3 sm:h-3" />
+                <div className="transform origin-right scale-[0.8] sm:scale-100 inline-block">
+                  <Text size="1" weight="medium" className="text-green-600 whitespace-nowrap">
+                    Active
+                  </Text>
+                </div>
               </Flex>
             </Flex>
           )}
