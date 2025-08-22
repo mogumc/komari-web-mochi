@@ -7,18 +7,6 @@
   isolation: isolate;
 }
 
-/* 网格容器基础样式 */
-.modern-grid-container {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* 确保网格项目有正确的初始布局 */
-.modern-grid-container > div {
-  box-sizing: border-box;
-  width: 100%;
-}
-
 /* 移除或减少动画 */
 .modern-card {
   /* 使用 transform 代替其他属性实现动画，避免重排 */
