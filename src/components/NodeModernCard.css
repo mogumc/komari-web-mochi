@@ -135,43 +135,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 2列布局 - 860px到1289px (860÷430=2, 1289÷430=2.99) */
-@media (min-width: 860px) and (max-width: 1289px) {
-  .modern-grid-container {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 1rem !important;
-    padding: 1rem !important;
-  }
-}
-
-/* 3列布局 - 1290px到1719px (1290÷430=3, 1719÷430=3.99) */
-@media (min-width: 1290px) and (max-width: 1719px) {
-  .modern-grid-container {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 1rem !important;
-    padding: 1rem !important;
-  }
-}
-
-/* 4列布局 - 1720px到2149px (1720÷430=4, 2149÷430=4.99) */
-@media (min-width: 1720px) and (max-width: 2149px) {
-  .modern-grid-container {
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 1rem !important;
-    padding: 1rem !important;
-  }
-}
-
-/* 5列及以上 - 2150px以上 */
-@media (min-width: 2150px) {
-  .modern-grid-container {
-    /* 让浏览器自动计算，保持最小宽度430px */
-    grid-template-columns: repeat(auto-fill, minmax(430px, 1fr)) !important;
-    gap: 1rem !important;
-    padding: 1rem !important;
-  }
-}
-
 /* 单列布局 - 小于860px (859÷430=1.99) */
 @media (max-width: 859px) {
   .modern-card {
@@ -217,11 +180,18 @@
     padding: 0.75rem !important;
   }
   
+  .modern-grid-container {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+    padding: 1rem !important;
+  }
+
   /* 确保卡片在移动端有正确的初始尺寸 */
   .modern-grid-container > div {
     width: 100%;
     min-width: 0;
   }
+  
 }
 
 /* 预渲染优化 */

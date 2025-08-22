@@ -322,7 +322,7 @@ const ModernGrid: React.FC<ModernGridProps> = ({ nodes, liveData, forceShowTraff
   }, [nodes, onlineNodes]);
 
   // 使用响应式网格布局
-  // 移动端2列，平板3列，桌面端自适应多列
+  // 移动端2列 桌面端自适应多列
   
   return (
     <div
