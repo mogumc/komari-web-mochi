@@ -109,9 +109,6 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
             <div 
               className="pt-3 border-t border-gray-5"
               style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-                gridTemplateRows: isMobile ? 'auto' : 'repeat(2, auto)',
                 gap: isMobile ? '8px' : '16px',
                 marginTop: isMobile ? '8px' : '12px'
               }}
