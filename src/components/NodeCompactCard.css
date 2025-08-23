@@ -42,11 +42,10 @@
 .expanded-content {
   overflow: hidden;
   transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
-  max-height: 0;
   opacity: 0;
 }
 
 .node-compact-card.expanded .expanded-content {
-  max-height: 600px; /* Increased for more content */
+  max-height: 600px; 
   opacity: 1;
 }

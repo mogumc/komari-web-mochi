@@ -248,7 +248,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
                   <Flex direction="column" gap="1">
                     <Flex justify="between" align="center">
                       <Text size="1" color="gray">Speed:</Text>
-                      <Flex direction="column" align="end" gap="0">
+                      <Flex direction="row" align="end" gap="4">
                         <Text size="1" style={{ lineHeight: '1.2' }}>
                           ↓{formatBytes(live?.network?.down ?? 0, isMobile)}/s
                         </Text>
@@ -259,7 +259,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
                     </Flex>
                     <Flex justify="between" align="center">
                       <Text size="1" color="gray">Total:</Text>
-                      <Flex direction="column" align="end" gap="0">
+                      <Flex direction="row" align="end" gap="4">
                         <Text size="1" style={{ lineHeight: '1.2' }}>
                           ↓{formatBytes(live?.network?.totalDown ?? 0, isMobile)}
                         </Text>
