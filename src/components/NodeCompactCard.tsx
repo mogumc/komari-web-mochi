@@ -109,12 +109,15 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
             <div 
               className="pt-3 border-t border-gray-5"
               style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+                gridTemplateRows: isMobile ? 'auto' : 'repeat(2, auto)',
                 gap: isMobile ? '8px' : '16px',
                 marginTop: isMobile ? '8px' : '12px'
               }}
             >
               {/* 1. System Info */}
-              <div className="p-2 bg-gray-a2 rounded" style={{ minHeight: isMobile ? '100px' : '120px' }}>
+              <div className="p-2 bg-gray-a2 rounded" >
                 <Text size="2" weight="bold" color="gray" className={isMobile ? "mb-1 block" : "mb-2 block"}>System</Text>
                 <Flex direction="column" gap="1">
                   <Flex justify="between" align="center">
@@ -145,7 +148,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
               </div>
 
               {/* 2. Hardware */}
-              <div className="p-2 bg-gray-a2 rounded" style={{ minHeight: isMobile ? '100px' : '120px' }}>
+              <div className="p-2 bg-gray-a2 rounded" >
                 <Text size="2" weight="bold" color="gray" className={isMobile ? "mb-1 block" : "mb-2 block"}>Hardware</Text>
                 <Flex direction="column" gap="1">
                   <Flex justify="between" align="center">
@@ -174,7 +177,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
               </div>
 
               {/* 3. Load & Process */}
-              <div className="p-2 bg-gray-a2 rounded" style={{ minHeight: isMobile ? '100px' : '120px' }}>
+              <div className="p-2 bg-gray-a2 rounded" >
                 <Text size="2" weight="bold" color="gray" className={isMobile ? "mb-1 block" : "mb-2 block"}>Load & Process</Text>
                 {live ? (
                   <Flex direction="column" gap="1">
@@ -207,7 +210,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
               </div>
 
               {/* 4. Resource Usage */}
-              <div className="p-2 bg-gray-a2 rounded" style={{ minHeight: isMobile ? '100px' : '120px' }}>
+              <div className="p-2 bg-gray-a2 rounded" >
                 <Text size="2" weight="bold" color="gray" className={isMobile ? "mb-1 block" : "mb-2 block"}>Resources</Text>
                 {live ? (
                   <Flex direction="column" gap="1">
@@ -231,10 +234,6 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
                         {formatBytes(live.disk?.used ?? 0, isMobile)}/{formatBytes(basic.disk_total, isMobile)}
                       </Text>
                     </Flex>
-                    <Flex justify="between" align="center">
-                      <Text size="1" color="gray">TCP/UDP:</Text>
-                      <Text size="1">{live.connections?.tcp ?? 0}/{live.connections?.udp ?? 0}</Text>
-                    </Flex>
                   </Flex>
                 ) : (
                   <Text size="1" color="gray">No data</Text>
@@ -242,7 +241,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
               </div>
 
               {/* 5. Network */}
-              <div className="p-2 bg-gray-a2 rounded" style={{ minHeight: isMobile ? '100px' : '120px' }}>
+              <div className="p-2 bg-gray-a2 rounded" >
                 <Text size="2" weight="bold" color="gray" className={isMobile ? "mb-1 block" : "mb-2 block"}>Network</Text>
                 {live ? (
                   <Flex direction="column" gap="1">
@@ -268,6 +267,10 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
                         </Text>
                       </Flex>
                     </Flex>
+                    <Flex justify="between" align="center">
+                      <Text size="1" color="gray">TCP/UDP:</Text>
+                      <Text size="1">{live.connections?.tcp ?? 0}/{live.connections?.udp ?? 0}</Text>
+                    </Flex>
                   </Flex>
                 ) : (
                   <Text size="1" color="gray">No data</Text>
@@ -275,7 +278,7 @@ const NodeCompactCard: React.FC<NodeCompactCardProps> = ({ basic, live, online }
               </div>
 
               {/* 6. Status */}
-              <div className="p-2 bg-gray-a2 rounded" style={{ minHeight: isMobile ? '100px' : '120px' }}>
+              <div className="p-2 bg-gray-a2 rounded" >
                 <Text size="2" weight="bold" color="gray" className={isMobile ? "mb-1 block" : "mb-2 block"}>Status</Text>
                 {live ? (
                   <Flex direction="column" gap="1">
