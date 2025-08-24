@@ -16,6 +16,10 @@ export const routes: RouteObject[] = [
         path: "instance/:uuid",
         element: React.createElement(lazy(() => import("./pages/instance"))),
       },
+      {
+        path: "monitor",
+        element: React.createElement(lazy(() => import("./pages/monitor"))),
+      },
     ],
   },
   // Catch-all 404 route

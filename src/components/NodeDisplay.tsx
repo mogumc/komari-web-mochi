@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Flex,
   Text,
@@ -6,7 +7,7 @@ import {
   TextField,
   SegmentedControl,
 } from "@radix-ui/themes";
-import { Search, X } from "lucide-react";
+import { Search, X ,ChartArea } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -18,11 +19,10 @@ import { isRegionMatch } from "@/utils/regionHelper";
 import "./NodeDisplay.css";
 import { ModernCard } from "./NodeModernCard";
 import NodeCompactCard from "./NodeCompactCard";
-import TaskDisplay from "./TaskDisplay";
 import NodeEarthView from "./NodeEarthView";
 import ViewModeSelector from "./ViewModeSelector";
 
-export type ViewMode = "modern" | "compact" | "classic" | "detailed" | "task" | "earth";
+export type ViewMode = "modern" | "compact" | "classic" | "detailed" | "earth";
 
 interface NodeDisplayProps {
   nodes: NodeBasicInfo[];
@@ -39,7 +39,7 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
   );
   
   // 确保 viewMode 总是有效值
-  const validViewModes: ViewMode[] = ["modern", "compact", "classic", "detailed", "task", "earth"];
+  const validViewModes: ViewMode[] = ["modern", "compact", "classic", "detailed", "earth"];
   const safeViewMode = validViewModes.includes(viewMode) ? viewMode : "modern";
   
   // 组件初始化优化
@@ -127,6 +127,8 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
     });
   }, [nodes, searchTerm, liveData, selectedGroup]);
 
+  const navigate = useNavigate();
+
   return (
     <div className="w-full">
       {/* 控制栏 */}
@@ -173,13 +175,44 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
         </Flex>
 
         {/* 视图模式切换 */}
-        <div className={isMobile ? "w-full" : ""}>
-          <ViewModeSelector 
-            currentMode={safeViewMode}
-            onModeChange={setViewMode}
-            isMobile={isMobile}
-          />
-        </div>
+        <Flex align="center" gap="4">
+          <Flex gap="2">
+             <Flex
+                align="center"
+                className="whitespace-nowrap text-md text-muted-foreground"
+              >
+                显示模式
+              </Flex>
+            <div className={isMobile ? "w-full" : ""}>
+              <ViewModeSelector 
+                currentMode={safeViewMode}
+                onModeChange={setViewMode}
+                isMobile={isMobile}
+              />
+            </div> 
+          </Flex>
+          <Flex gap="2">
+            <Flex
+                align="center"
+                className="whitespace-nowrap text-md text-muted-foreground"
+              >
+                监控图表
+              </Flex>
+            <div className={isMobile ? "w-full" : ""}>
+              <IconButton
+                variant="soft"
+                size="2"
+                className="view-mode-toggle-button"
+                onClick={() => navigate("/monitor")}
+                title="监控图表"
+              >
+                <Flex align="center" justify="center" gap="1" width="100%" height="100%">
+                  <ChartArea className="view-mode-icon" />
+                </Flex>
+              </IconButton>
+            </div>
+          </Flex>
+        </Flex>
       </Flex>
       {/* 分组选择器 */}
       {showGroupSelector && (
@@ -283,9 +316,6 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
           )}
           {safeViewMode === "detailed" && (
             <NodeTable nodes={filteredNodes} liveData={liveData} />
-          )}
-          {safeViewMode === "task" && (
-            <TaskDisplay nodes={nodes} liveData={liveData} />
           )}
           {safeViewMode === "earth" && (
             <NodeEarthView nodes={filteredNodes} liveData={liveData} />

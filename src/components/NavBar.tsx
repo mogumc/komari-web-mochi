@@ -3,8 +3,6 @@ import ColorSwitch from "./ColorSwitch";
 import LanguageSwitch from "./Language";
 import LoginDialog from "./Login";
 import FloatingMenu from "./FloatingMenu";
-import { IconButton } from "@radix-ui/themes";
-import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { Link } from "react-router-dom";
 import { usePublicInfo } from "@/contexts/PublicInfoContext";
 import { useTranslation } from "react-i18next";
@@ -39,15 +37,6 @@ const NavBar = () => {
         {/* Desktop buttons - hide on mobile */}
         {!isMobile && (
           <>
-            <IconButton
-              variant="soft"
-              onClick={() => {
-                window.open("https://github.com/komari-monitor", "_blank");
-              }}
-            >
-              <GitHubLogoIcon />
-            </IconButton>
-
             <ThemeSwitch />
             <ColorSwitch />
             <LanguageSwitch />
