@@ -22,15 +22,6 @@ const FloatingMenu: React.FC = () => {
 
   const menuItems = [
     {
-      id: "github",
-      icon: <Github size={20} />,
-      label: "GitHub",
-      action: () => {
-        window.open("https://github.com/komari-monitor", "_blank");
-        setIsOpen(false);
-      }
-    },
-    {
       id: "theme",
       icon: <Sun size={20} />,
       label: t("Theme"),
