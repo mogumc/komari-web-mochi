@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { IconButton, Flex } from "@radix-ui/themes";
-import { Menu, X, Github, Sun, Palette, Languages, Settings } from "lucide-react";
+import { Menu, X, Sun, Palette, Languages, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ThemeSwitch from "./ThemeSwitch";
@@ -154,28 +154,9 @@ const FloatingMenu: React.FC = () => {
                   </motion.div>
 
                   {/* Button or Component */}
-                  {item.component ? (
-                    <div className="floating-menu-item">
-                      {item.component}
-                    </div>
-                  ) : (
-                    <IconButton
-                      size="3"
-                      variant="solid"
-                      className="floating-menu-item shadow-md"
-                      style={{
-                        background: item.id === "github" ? "var(--gray-12)" : "var(--gray-2)",
-                        color: item.id === "github" ? "var(--gray-1)" : "var(--gray-12)",
-                        border: "1px solid var(--gray-4)",
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                      }}
-                      onClick={item.action}
-                    >
-                      {item.icon}
-                    </IconButton>
-                  )}
+                  <div className="floating-menu-item">
+                    {item.component}
+                  </div>
                 </motion.div>
               ))}
             </Flex>
