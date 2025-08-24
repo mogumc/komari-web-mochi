@@ -181,7 +181,9 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
                 align="center"
                 className="whitespace-nowrap text-md text-muted-foreground"
               >
-                显示模式
+                {t("view.mode", {
+                defaultValue: "显示模式",
+              })}
               </Flex>
             <div className={isMobile ? "w-full" : ""}>
               <ViewModeSelector 
@@ -196,7 +198,9 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
                 align="center"
                 className="whitespace-nowrap text-md text-muted-foreground"
               >
-                监控图表
+                {t("view.chart", {
+                defaultValue: "监控图表",
+              })}
               </Flex>
             <div className={isMobile ? "w-full" : ""}>
               <IconButton

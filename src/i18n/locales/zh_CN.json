@@ -618,7 +618,8 @@
     "try_different": "尝试不同的搜索关键词"
   },
   "view": {
-    "mode": "显示模式"
+    "mode": "显示模式",
+    "chart": "监控图表"
   },
   "nodes": {
     "empty": "暂无服务器数据"

@@ -588,7 +588,8 @@
     "try_different": "嘗試不同的搜尋關鍵詞"
   },
   "view": {
-    "mode": "顯示模式"
+    "mode": "顯示模式",
+    "chart": "監控圖表"
   },
   "nodes": {
     "empty": "暫無伺服器資料"

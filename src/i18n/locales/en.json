@@ -593,7 +593,8 @@
     "try_different": "Try different search keywords"
   },
   "view": {
-    "mode": "View Mode"
+    "mode": "View Mode",
+    "chart": "Monitor Graph"
   },
   "nodes": {
     "empty": "No server data available"
