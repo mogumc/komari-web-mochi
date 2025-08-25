@@ -237,8 +237,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
   const [loadData, setLoadData] = useState<Record<string, LoadRecord[]>>({});
   
   // Common states
-  // 初始设为 true，避免在加载前闪现"没有配置Ping任务"
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cutPeak, setCutPeak] = useState(false);
   const [hiddenNodes, setHiddenNodes] = useState<Record<string, boolean>>({});
@@ -309,68 +308,45 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
     setLoading(true);
     setError(null);
     
-    fetch('/api/admin/ping')
-      .then(res => {
-        if (!res.ok) throw new Error(`Admin API failed: ${res.status}`);
-        return res.json();
-      })
-      .then(resp => {
-        const taskList = resp.data?.tasks || resp.tasks || resp || [];
-        if (Array.isArray(taskList) && taskList.length > 0) {
-          setTasks(taskList);
+    // Fetch tasks directly from nodes
+    const taskPromises = nodes.map(node => 
+      fetch(`/api/records/ping?uuid=${node.uuid}&hours=1`)
+        .then(res => res.ok ? res.json() : null)
+        .then(resp => resp?.data?.tasks || [])
+        .catch(() => [])
+    );
+    
+    Promise.all(taskPromises)
+      .then(allTaskLists => {
+        const taskMap = new Map<number, TaskInfo>();
+        
+        allTaskLists.forEach(taskList => {
+          if (Array.isArray(taskList)) {
+            taskList.forEach((task: TaskInfo) => {
+              if (task && task.id && !taskMap.has(task.id)) {
+                taskMap.set(task.id, task);
+              }
+            });
+          }
+        });
+        
+        const mergedTasks = Array.from(taskMap.values()).sort((a, b) => a.id - b.id);
+        
+        if (mergedTasks.length > 0) {
+          setTasks(mergedTasks);
           if (!selectedTaskId) {
-            setSelectedTaskId(taskList[0].id);
+            setSelectedTaskId(mergedTasks[0].id);
           }
           setLoading(false);
         } else {
-          throw new Error("No tasks from admin API");
+          // No tasks found
+          setError("No ping tasks configured");
+          setLoading(false);
         }
       })
-      .catch(adminErr => {
-        console.log("Admin API failed, trying nodes:", adminErr.message);
-        
-        const taskPromises = nodes.map(node => 
-          fetch(`/api/records/ping?uuid=${node.uuid}&hours=1`)
-            .then(res => res.ok ? res.json() : null)
-            .then(resp => resp?.data?.tasks || [])
-            .catch(() => [])
-        );
-        
-        Promise.all(taskPromises)
-          .then(allTaskLists => {
-            const taskMap = new Map<number, TaskInfo>();
-            
-            allTaskLists.forEach(taskList => {
-              if (Array.isArray(taskList)) {
-                taskList.forEach((task: TaskInfo) => {
-                  if (task && task.id && !taskMap.has(task.id)) {
-                    taskMap.set(task.id, task);
-                  }
-                });
-              }
-            });
-            
-            const mergedTasks = Array.from(taskMap.values()).sort((a, b) => a.id - b.id);
-            
-            if (mergedTasks.length > 0) {
-              setTasks(mergedTasks);
-              if (!selectedTaskId) {
-                setSelectedTaskId(mergedTasks[0].id);
-              }
-              setLoading(false);
-            } else {
-              // 没有找到任务，可能是未登录或真的没有配置
-              // 不设置 loading = false，保持加载状态，让 fallback 处理
-              setError("No ping tasks found from any node");
-              // 保持 loading = true
-            }
-          })
-          .catch(() => {
-            // 请求失败，可能是未登录
-            // 不设置 loading = false，保持加载状态
-            setError("Failed to fetch ping tasks from nodes");
-            // 保持 loading = true，让 fallback 处理
-          });
+      .catch(() => {
+        setError("Failed to fetch ping tasks");
+        setLoading(false);
       });
   }, [taskMode, nodes?.length]);
 
@@ -476,12 +452,17 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
       const grouped: Record<string, any> = {};
       const timeKeys: number[] = [];
       
+      // Get task interval for tolerance calculation
+      const selectedTask = tasks.find(t => t.id === selectedTaskId);
+      const taskInterval = selectedTask?.interval || 60;
+      const tolerance = taskInterval * 2 * 1000; // 2x interval in milliseconds
+      
       records.forEach(record => {
         const t = new Date(record.time).getTime();
         let foundKey = null;
         
         for (const key of timeKeys) {
-          if (Math.abs(key - t) <= 1500) {
+          if (Math.abs(key - t) <= tolerance) {
             foundKey = key;
             break;
           }
@@ -501,16 +482,15 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
         (a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime()
       );
       
-      const selectedTask = tasks.find(t => t.id === selectedTaskId);
-      const taskInterval = selectedTask?.interval || 60;
       data = fillMissingTimePoints(
         data,
         taskInterval,
         viewHours * 60 * 60,
-        taskInterval * 1.2
+        taskInterval * 2  // Changed from 1.2x to 2x to match tolerance
       );
       
-      data = sampleDataByRetention(data, viewHours);
+      // Pass taskInterval as minimum interval to prevent sampling below data generation rate
+      data = sampleDataByRetention(data, viewHours, false, taskInterval);
       
       if (cutPeak && nodes) {
         const nodeKeys = nodes.map(n => n.uuid);
@@ -922,9 +902,6 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
     );
   }
 
-  // 移除"没有配置Ping任务"的提示，避免在未登录时闪现
-  // 如果没有任务，会继续显示加载状态或空图表
-
   return (
     <Flex direction="column" gap="4" className="w-full px-4">
       {/* Mode selector and control panel */}
@@ -940,12 +917,10 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
               value={taskMode}
               onValueChange={(value) => {
                 setTaskMode(value as TaskMode);
-                setLoading(true); // 切换模式时设置加载状态
-                // 清空之前的数据，避免显示错误信息
                 if (value === "ping") {
-                  setTasks([]); // 清空任务列表
-                  setSelectedTaskId(null); // 清空选中的任务
-                  setTaskData({}); // 清空任务数据
+                  setTasks([]);
+                  setSelectedTaskId(null);
+                  setTaskData({});
                 }
               }}
               size={isMobile ? "1" : "2"}
