@@ -350,7 +350,8 @@ type ModernGridProps = {
 
 const ModernGrid: React.FC<ModernGridProps> = ({ nodes, liveData, forceShowTrafficText }) => {
   const onlineNodes = liveData?.online || [];
-  
+  const { publicInfo } = usePublicInfo();
+  const offlineNodePosition = publicInfo?.theme_settings?.offlineNodePosition ?? "后面";
   // 使用 useMemo 缓存排序结果，避免每次渲染都重新排序
   const sortedNodes = useMemo(() => {
     // 创建在线节点的 Set 以优化查找性能
@@ -359,10 +360,21 @@ const ModernGrid: React.FC<ModernGridProps> = ({ nodes, liveData, forceShowTraff
     return [...nodes].sort((a, b) => {
       const aOnline = onlineSet.has(a.uuid);
       const bOnline = onlineSet.has(b.uuid);
-      if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      // 根据配置决定离线节点位置
+      if (offlineNodePosition === "前面") {
+        // 离线节点在前
+        if (aOnline !== bOnline) return aOnline ? 1 : -1;
+      } else if (offlineNodePosition === "原位置") {
+        // 不区分在线状态，只按权重排序
+        // 继续执行下面的权重排序
+      } else {
+        // 默认：离线节点在后（后面）
+        if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      }
+      
       return a.weight - b.weight;
     });
-  }, [nodes, onlineNodes]);
+  }, [nodes, onlineNodes, offlineNodePosition]);
 
   // 使用响应式网格布局
   // 移动端2列 桌面端自适应多列
@@ -412,6 +424,8 @@ type CompactListProps = {
 
 const CompactList: React.FC<CompactListProps> = ({ nodes, liveData }) => {
   const onlineNodes = liveData?.online || [];
+  const { publicInfo } = usePublicInfo();
+  const offlineNodePosition = publicInfo?.theme_settings?.offlineNodePosition ?? "后面";
   
   const sortedNodes = useMemo(() => {
     const onlineSet = new Set(onlineNodes);
@@ -419,10 +433,22 @@ const CompactList: React.FC<CompactListProps> = ({ nodes, liveData }) => {
     return [...nodes].sort((a, b) => {
       const aOnline = onlineSet.has(a.uuid);
       const bOnline = onlineSet.has(b.uuid);
-      if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      
+      // 根据配置决定离线节点位置
+      if (offlineNodePosition === "前面") {
+        // 离线节点在前
+        if (aOnline !== bOnline) return aOnline ? 1 : -1;
+      } else if (offlineNodePosition === "原位置") {
+        // 不区分在线状态，只按权重排序
+        // 继续执行下面的权重排序
+      } else {
+        // 默认：离线节点在后（后面）
+        if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      }
+      
       return a.weight - b.weight;
     });
-  }, [nodes, onlineNodes]);
+  }, [nodes, onlineNodes, offlineNodePosition]);
 
   return (
     <Flex direction="column" gap="2" className="p-4">
