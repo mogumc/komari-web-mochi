@@ -36,7 +36,8 @@
                 "options":"Modern,Compact,Classic,Detailed,Task,Earth",
                 "default":"Modern",
                 "help":"设置首页的默认视图模式。Modern：现代卡片视图；Compact：紧凑列表视图；Classic：经典网格视图；Detailed：详细表格视图；Task：任务视图；Earth：地球视图。"
-            }
+            },
+            { "key": "canViewMode", "name": "允许修改视图模式", "type": "switch", "default": true, "help": "关闭后只允许切换默认视图与地球视图(无论是否登录)" }
         ]
     }
 }
