@@ -274,9 +274,10 @@ export function calculateLossRate(chartData: any[], taskId: number): number {
  * @param data 原始数据数组
  * @param retentionHours 数据保留时间（小时）
  * @param isMiniChart 是否是迷你图表（采样更激进）
+ * @param minIntervalSeconds 最小采样间隔（秒），确保不会小于数据产生间隔
  * @returns 采样后的数据数组
  */
-export function sampleDataByRetention(data: any[], retentionHours: number, isMiniChart: boolean = false): any[] {
+export function sampleDataByRetention(data: any[], retentionHours: number, isMiniChart: boolean = false, minIntervalSeconds?: number): any[] {
   if (!data || data.length === 0) return [];
 
   let sampleInterval: number;
@@ -310,6 +311,11 @@ export function sampleDataByRetention(data: any[], retentionHours: number, isMin
     } else {
       sampleInterval = 180; // 180分钟采样
     }
+  }
+
+  // 如果提供了最小间隔，确保采样间隔不小于它
+  if (minIntervalSeconds && sampleInterval * 60 < minIntervalSeconds) {
+    sampleInterval = Math.ceil(minIntervalSeconds / 60); // 转换为分钟并向上取整
   }
 
   // 如果数据点间隔已经大于采样间隔，直接返回原数据

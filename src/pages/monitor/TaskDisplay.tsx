@@ -189,6 +189,12 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
     return ua.includes('safari') && !ua.includes('chrome') && !ua.includes('android');
   }, []);
   
+  // 统一的节点颜色获取函数 - 始终基于原始节点列表的索引
+  const getNodeColorScheme = useCallback((nodeUuid: string) => {
+    const nodeIndex = nodes.findIndex(n => n.uuid === nodeUuid);
+    return nodeColorSchemes[nodeIndex % nodeColorSchemes.length];
+  }, [nodes]);
+  
   // Y-axis formatter based on metric type
   const getYAxisFormatter = () => {
     if (taskMode === "ping") {
@@ -235,6 +241,9 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
   // Load metric states
   const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(["cpu"]);
   const [loadData, setLoadData] = useState<Record<string, LoadRecord[]>>({});
+  
+  // Server-side statistics for ping tasks (from new API)
+  const [serverPingStats, setServerPingStats] = useState<Record<string, any>>({});
   
   // Common states
   const [loading, setLoading] = useState(false);
@@ -308,45 +317,80 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
     setLoading(true);
     setError(null);
     
-    // Fetch tasks directly from nodes
-    const taskPromises = nodes.map(node => 
-      fetch(`/api/records/ping?uuid=${node.uuid}&hours=1`)
-        .then(res => res.ok ? res.json() : null)
-        .then(resp => resp?.data?.tasks || [])
-        .catch(() => [])
-    );
-    
-    Promise.all(taskPromises)
-      .then(allTaskLists => {
-        const taskMap = new Map<number, TaskInfo>();
-        
-        allTaskLists.forEach(taskList => {
-          if (Array.isArray(taskList)) {
-            taskList.forEach((task: TaskInfo) => {
-              if (task && task.id && !taskMap.has(task.id)) {
-                taskMap.set(task.id, task);
-              }
-            });
+    // Try new global API first
+    fetch('/api/task/ping')
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Global API failed with status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(resp => {
+        const taskList = resp?.data || [];
+        if (Array.isArray(taskList) && taskList.length > 0) {
+          // Filter tasks that have at least one client from our nodes
+          const nodeUuids = nodes.map(n => n.uuid);
+          const relevantTasks = taskList.filter((task: any) => 
+            !task.clients || task.clients.length === 0 || 
+            task.clients.some((clientId: string) => nodeUuids.includes(clientId))
+          );
+          
+          if (relevantTasks.length > 0) {
+            setTasks(relevantTasks);
+            if (!selectedTaskId) {
+              setSelectedTaskId(relevantTasks[0].id);
+            }
+            setLoading(false);
+          } else {
+            throw new Error("No relevant tasks for current nodes");
           }
-        });
-        
-        const mergedTasks = Array.from(taskMap.values()).sort((a, b) => a.id - b.id);
-        
-        if (mergedTasks.length > 0) {
-          setTasks(mergedTasks);
-          if (!selectedTaskId) {
-            setSelectedTaskId(mergedTasks[0].id);
-          }
-          setLoading(false);
         } else {
-          // No tasks found
-          setError("No ping tasks configured");
-          setLoading(false);
+          throw new Error("Empty task list from global API");
         }
       })
-      .catch(() => {
-        setError("Failed to fetch ping tasks");
-        setLoading(false);
+      .catch(globalErr => {
+        console.log("Global task API failed, falling back to node-based fetch:", globalErr.message);
+        
+        // Fallback: Fetch tasks directly from nodes
+        const taskPromises = nodes.map(node => 
+          fetch(`/api/records/ping?uuid=${node.uuid}&hours=1`)
+            .then(res => res.ok ? res.json() : null)
+            .then(resp => resp?.data?.tasks || [])
+            .catch(() => [])
+        );
+        
+        Promise.all(taskPromises)
+          .then(allTaskLists => {
+            const taskMap = new Map<number, TaskInfo>();
+            
+            allTaskLists.forEach(taskList => {
+              if (Array.isArray(taskList)) {
+                taskList.forEach((task: TaskInfo) => {
+                  if (task && task.id && !taskMap.has(task.id)) {
+                    taskMap.set(task.id, task);
+                  }
+                });
+              }
+            });
+            
+            const mergedTasks = Array.from(taskMap.values()).sort((a, b) => a.id - b.id);
+            
+            if (mergedTasks.length > 0) {
+              setTasks(mergedTasks);
+              if (!selectedTaskId) {
+                setSelectedTaskId(mergedTasks[0].id);
+              }
+              setLoading(false);
+            } else {
+              // No tasks found
+              setError("No ping tasks configured");
+              setLoading(false);
+            }
+          })
+          .catch(() => {
+            setError("Failed to fetch ping tasks");
+            setLoading(false);
+          });
       });
   }, [taskMode, nodes?.length]);
 
@@ -355,55 +399,104 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
     if (taskMode !== "ping" || !selectedTaskId || !nodes || nodes.length === 0) return;
     
     setLoading(true);
-    const promises = nodes.map(node => 
-      fetch(`/api/records/ping?uuid=${node.uuid}&hours=${viewHours}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(resp => {
-          const tasks = resp?.data?.tasks || [];
-          const lossRates: Record<string, number> = {};
-          tasks.forEach((task: TaskInfo) => {
-            if (task.id && typeof task.loss === 'number') {
-              lossRates[`${node.uuid}_${task.id}`] = task.loss;
-            }
-          });
-          
-          return {
-            nodeId: node.uuid,
-            records: resp?.data?.records?.filter((r: PingRecord) => r.task_id === selectedTaskId) || [],
-            lossRates
-          };
-        })
-        .catch(() => ({ nodeId: node.uuid, records: [], lossRates: {} }))
-    );
     
-    Promise.all(promises)
-      .then(results => {
-        const newData: Record<number, PingRecord[]> = {};
-        const allLossRates: Record<string, number> = {};
+    // Try new task_id based API first
+    fetch(`/api/records/ping?task_id=${selectedTaskId}&hours=${viewHours}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Task-based API failed with status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(resp => {
+        const records = resp?.data?.records || [];
+        const basicInfo = resp?.data?.basic_info || [];
         
-        results.forEach(result => {
-          Object.assign(allLossRates, result.lossRates);
-          
-          if (result.records.length > 0) {
-            result.records.forEach((record: PingRecord) => {
-              if (!newData[selectedTaskId]) {
-                newData[selectedTaskId] = [];
-              }
-              newData[selectedTaskId].push({
-                ...record,
-                client: result.nodeId
-              });
-            });
+        // Process records - they already have client field
+        const newData: Record<number, PingRecord[]> = {};
+        if (records.length > 0) {
+          newData[selectedTaskId] = records;
+        }
+        
+        // Process basic_info for statistics
+        const allLossRates: Record<string, number> = {};
+        const serverStats: Record<string, any> = {};
+        
+        basicInfo.forEach((info: any) => {
+          if (info.client) {
+            // Store loss rate
+            if (typeof info.loss === 'number') {
+              allLossRates[`${info.client}_${selectedTaskId}`] = info.loss;
+            }
+            // Store server statistics
+            serverStats[info.client] = {
+              loss: info.loss,
+              min: info.min,
+              max: info.max
+            };
           }
         });
         
         setTaskData(newData);
         setTaskLossRates(allLossRates);
+        setServerPingStats(serverStats);
         setLoading(false);
       })
-      .catch(err => {
-        console.error("Error fetching ping data:", err);
-        setLoading(false);
+      .catch(taskErr => {
+        console.log("Task-based API failed, falling back to UUID-based fetch:", taskErr.message);
+        
+        // Fallback: Original UUID-based fetching
+        const promises = nodes.map(node => 
+          fetch(`/api/records/ping?uuid=${node.uuid}&hours=${viewHours}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(resp => {
+              const tasks = resp?.data?.tasks || [];
+              const lossRates: Record<string, number> = {};
+              tasks.forEach((task: TaskInfo) => {
+                if (task.id && typeof task.loss === 'number') {
+                  lossRates[`${node.uuid}_${task.id}`] = task.loss;
+                }
+              });
+              
+              return {
+                nodeId: node.uuid,
+                records: resp?.data?.records?.filter((r: PingRecord) => r.task_id === selectedTaskId) || [],
+                lossRates
+              };
+            })
+            .catch(() => ({ nodeId: node.uuid, records: [], lossRates: {} }))
+        );
+        
+        Promise.all(promises)
+          .then(results => {
+            const newData: Record<number, PingRecord[]> = {};
+            const allLossRates: Record<string, number> = {};
+            
+            results.forEach(result => {
+              Object.assign(allLossRates, result.lossRates);
+              
+              if (result.records.length > 0) {
+                result.records.forEach((record: PingRecord) => {
+                  if (!newData[selectedTaskId]) {
+                    newData[selectedTaskId] = [];
+                  }
+                  newData[selectedTaskId].push({
+                    ...record,
+                    client: result.nodeId
+                  });
+                });
+              }
+            });
+            
+            setTaskData(newData);
+            setTaskLossRates(allLossRates);
+            setServerPingStats({}); // Clear server stats when using fallback
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error("Error fetching ping data:", err);
+            setLoading(false);
+          });
       });
   }, [taskMode, selectedTaskId, nodes, viewHours]);
 
@@ -455,7 +548,8 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
       // Get task interval for tolerance calculation
       const selectedTask = tasks.find(t => t.id === selectedTaskId);
       const taskInterval = selectedTask?.interval || 60;
-      const tolerance = taskInterval * 2 * 1000; // 2x interval in milliseconds
+      // Task模式下使用更宽松的容差，取任务间隔的100%或最小60秒
+      const tolerance = Math.max(60, taskInterval) * 1000; // 时间点匹配容差（用于多节点数据分组）
       
       records.forEach(record => {
         const t = new Date(record.time).getTime();
@@ -486,7 +580,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
         data,
         taskInterval,
         viewHours * 60 * 60,
-        taskInterval * 2  // Changed from 1.2x to 2x to match tolerance
+        taskInterval  // 数据填充容差改为 interval * 1
       );
       
       // Pass taskInterval as minimum interval to prevent sampling below data generation rate
@@ -511,9 +605,11 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
           const t = new Date(record.time).getTime();
           let foundKey = null;
           
-          // Find if there's an existing time key within 2 seconds tolerance
+          // Find if there's an existing time key within interval tolerance
+          // 使用与数据填充相同的容差（interval * 1）
+          const groupingTolerance = (viewHours <= 4 ? 60 : 60 * 15) * 1000; // 转换为毫秒
           for (const key of timeKeys) {
-            if (Math.abs(key - t) <= 2000) {
+            if (Math.abs(key - t) <= groupingTolerance) {
               foundKey = key;
               break;
             }
@@ -587,12 +683,13 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
       // Fill missing time points based on time range
       // Backend records: <= 4 hours: 1 minute interval, > 4 hours: 15 minutes interval
       let interval, maxGap;
+      
       if (viewHours <= 4) {
-        interval = 60; // 1 minute interval
-        maxGap = 60 * 2; // 2 minutes max gap
+        interval = 60;     // 1分钟间隔
+        maxGap = 60;       // 1分钟容差
       } else {
-        interval = 60 * 15; // 15 minutes interval  
-        maxGap = 60 * 30; // 30 minutes max gap
+        interval = 60 * 15;  // 15分钟间隔
+        maxGap = interval;   // 容差 = interval * 1
       }
       
       data = fillMissingTimePoints(data, interval, viewHours * 60 * 60, maxGap);
@@ -628,22 +725,48 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
           .filter(v => v != null && v > 0);
         
         if (values.length > 0) {
+          // Check for server-side statistics first
+          const serverStats = serverPingStats[node.uuid];
           const backendLossRate = selectedTaskId ? taskLossRates[`${node.uuid}_${selectedTaskId}`] : undefined;
-          const lossRate = typeof backendLossRate === 'number' 
-            ? Math.round(backendLossRate * 10) / 10
-            : Math.round((1 - values.length / chartData.length) * 1000) / 10;
+          
+          // Use server stats if available, otherwise calculate from data
+          const min = serverStats?.min !== undefined ? serverStats.min : Math.min(...values);
+          const max = serverStats?.max !== undefined ? serverStats.max : Math.max(...values);
+          const lossRate = serverStats?.loss !== undefined 
+            ? Math.round(serverStats.loss * 10) / 10
+            : typeof backendLossRate === 'number' 
+              ? Math.round(backendLossRate * 10) / 10
+              : Math.round((1 - values.length / chartData.length) * 1000) / 10;
           
           const isOnline = liveData?.online?.includes(node.uuid) || false;
           stats[node.uuid] = {
-            min: Math.min(...values),
-            max: Math.max(...values),
+            min,
+            max,
             avg: values.reduce((a, b) => a + b, 0) / values.length,
             current: values[values.length - 1] || null,
             lossRate,
             totalSamples: chartData.length,
             validSamples: values.length,
             isOnline,
-            isBackendCalculated: typeof backendLossRate === 'number',
+            isBackendCalculated: serverStats?.loss !== undefined || typeof backendLossRate === 'number',
+            hasServerStats: !!serverStats,
+          };
+        } else if (serverPingStats[node.uuid]) {
+          // Even if no chart data, use server stats if available
+          const serverStats = serverPingStats[node.uuid];
+          const isOnline = liveData?.online?.includes(node.uuid) || false;
+          
+          stats[node.uuid] = {
+            min: serverStats.min || 0,
+            max: serverStats.max || 0,
+            avg: 0, // No data to calculate average
+            current: null,
+            lossRate: Math.round((serverStats.loss || 0) * 10) / 10,
+            totalSamples: 0,
+            validSamples: 0,
+            isOnline,
+            isBackendCalculated: true,
+            hasServerStats: true,
           };
         }
       });
@@ -683,7 +806,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
     }
     
     return stats;
-  }, [chartData, nodes, liveData, taskMode, selectedTaskId, taskLossRates, selectedMetrics]);
+  }, [chartData, nodes, liveData, taskMode, selectedTaskId, taskLossRates, selectedMetrics, serverPingStats]);
 
   const toggleNode = useCallback((nodeId: string) => {
     setHiddenNodes(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
@@ -818,7 +941,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
               const node = nodes.find(n => n.uuid === entry.dataKey);
               if (!node) return null;
               
-              const colorScheme = nodeColorSchemes[nodes.indexOf(node) % nodeColorSchemes.length];
+              const colorScheme = getNodeColorScheme(node.uuid);
               
               return (
                 <div key={index} className="flex items-center justify-between gap-3">
@@ -1275,10 +1398,10 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                 {nodes.filter(node => {
                   const stats = nodeStatistics[node.uuid];
                   return stats && (taskMode === "ping" ? stats.validSamples > 0 : Object.keys(stats.metrics || {}).length > 0);
-                }).map((node, idx) => {
+                }).map((node) => {
                   const stats = nodeStatistics[node.uuid];
                   const isHidden = hiddenNodes[node.uuid];
-                  const colorScheme = nodeColorSchemes[idx % nodeColorSchemes.length];
+                  const colorScheme = getNodeColorScheme(node.uuid);
                   const isOnline = stats?.isOnline || false;
                   
                   return (
@@ -1566,8 +1689,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                       return (
                         <>
                           {displayNodes.map((node) => {
-                      const nodeIdx = nodes.indexOf(node);
-                      const colorScheme = nodeColorSchemes[nodeIdx % nodeColorSchemes.length];
+                      const colorScheme = getNodeColorScheme(node.uuid);
                       const stats = nodeStatistics[node.uuid];
                       const hasData = stats && stats.current !== null;
                       
@@ -1602,10 +1724,9 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
             ) : (
                     // Load mode: show node-metric combinations
                     (() => {
-                      const allCombinations = nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node, nodeIdx) => 
+                      const allCombinations = nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node) => 
                         selectedMetrics.map(metric => ({
                           node,
-                          nodeIdx,
                           metric,
                           key: `${node.uuid}_${metric}`
                         }))
@@ -1616,8 +1737,8 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                       
                       return (
                         <>
-                          {displayCombinations.map(({ node, nodeIdx, metric, key }) => {
-                            const nodeColorScheme = nodeColorSchemes[nodeIdx % nodeColorSchemes.length];
+                          {displayCombinations.map(({ node, metric, key }) => {
+                            const nodeColorScheme = getNodeColorScheme(node.uuid);
                             
                             // Determine display color based on selection
                             let displayColor: string;
@@ -1632,7 +1753,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                             } else {
                               // Multiple nodes and metrics: use metric colors with dash variation
                               displayColor = MetricConfigs[metric]?.color || nodeColorScheme.primary;
-                              strokeDash = nodeIdx > 0 ? "5 3" : undefined;
+                              strokeDash = nodes.findIndex(n => n.uuid === node.uuid) > 0 ? "5 3" : undefined;
                             }
                             
                             return (
@@ -1711,8 +1832,8 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                       nodes.filter(node => {
                         const stats = nodeStatistics[node.uuid];
                         return stats && stats.validSamples > 0 && !hiddenNodes[node.uuid];
-                      }).map((node, idx) => {
-                        const colorScheme = nodeColorSchemes[idx % nodeColorSchemes.length];
+                      }).map((node) => {
+                        const colorScheme = getNodeColorScheme(node.uuid);
                         
                         return (
                           <Line
@@ -1731,12 +1852,13 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                         );
                       })
                     ) : (
-                      nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node, nodeIdx) => 
+                      nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node) => 
                         selectedMetrics.map((metric) => {
                           const key = `${node.uuid}_${metric}`;
+                          const nodeIdx = nodes.findIndex(n => n.uuid === node.uuid);
                           
                           // Create unique color for each node-metric combination
-                          const nodeColorScheme = nodeColorSchemes[nodeIdx % nodeColorSchemes.length];
+                          const nodeColorScheme = getNodeColorScheme(node.uuid);
                           
                           // If only one metric selected, use different colors for different nodes
                           // If multiple metrics selected, use metric colors but with node variations
@@ -1807,8 +1929,9 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                       nodes.filter(node => {
                         const stats = nodeStatistics[node.uuid];
                         return stats && stats.validSamples > 0 && !hiddenNodes[node.uuid];
-                      }).map((node, idx) => {
-                        const colorScheme = nodeColorSchemes[idx % nodeColorSchemes.length];
+                      }).map((node) => {
+                        const colorScheme = getNodeColorScheme(node.uuid);
+                        const nodeIndex = nodes.findIndex(n => n.uuid === node.uuid);
                         
                         return (
                           <Area
@@ -1816,17 +1939,17 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                             type={cutPeak ? "monotone" : "linear"}
                             dataKey={node.uuid}
                             stroke={colorScheme.primary}
-                            fill={`url(#area-gradient-${idx % nodeColorSchemes.length})`}
+                            fill={`url(#area-gradient-${nodeIndex % nodeColorSchemes.length})`}
                             strokeWidth={1.5}
                             stackId="1"
                           />
                         );
                       })
                     ) : (
-                      nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node, nodeIdx) => 
+                      nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node) => 
                         selectedMetrics.map(metric => {
                           const key = `${node.uuid}_${metric}`;
-                          const nodeColorScheme = nodeColorSchemes[nodeIdx % nodeColorSchemes.length];
+                          const nodeColorScheme = getNodeColorScheme(node.uuid);
                           
                           let strokeColor: string;
                           if (selectedMetrics.length === 1) {
@@ -1886,8 +2009,9 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                       nodes.filter(node => {
                         const stats = nodeStatistics[node.uuid];
                         return stats && stats.validSamples > 0 && !hiddenNodes[node.uuid];
-                      }).map((node, idx) => {
-                        const colorScheme = nodeColorSchemes[idx % nodeColorSchemes.length];
+                      }).map((node) => {
+                        const colorScheme = getNodeColorScheme(node.uuid);
+                        const nodeIndex = nodes.findIndex(n => n.uuid === node.uuid);
                         
                         // 统一的规则：前半部分使用Area，后半部分使用Line
                         const visibleNodes = nodes.filter(n => {
@@ -1904,7 +2028,7 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                               type={cutPeak ? "monotone" : "linear"}
                               dataKey={node.uuid}
                               stroke={colorScheme.primary}
-                              fill={`url(#composed-gradient-${idx % nodeColorSchemes.length})`}
+                              fill={`url(#composed-gradient-${nodeIndex % nodeColorSchemes.length})`}
                               strokeWidth={1.5}
                               isAnimationActive={false}
                               connectNulls={connectNulls}
@@ -1929,12 +2053,13 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                         }
                       })
                     ) : (
-                      nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node, nodeIdx) => 
+                      nodes.filter(node => !hiddenNodes[node.uuid]).flatMap((node) => 
                         selectedMetrics.map((metric, metricIdx) => {
                           const key = `${node.uuid}_${metric}`;
+                          const nodeIdx = nodes.findIndex(n => n.uuid === node.uuid);
                           const totalItems = nodes.length * selectedMetrics.length;
                           const currentIdx = nodeIdx * selectedMetrics.length + metricIdx;
-                          const nodeColorScheme = nodeColorSchemes[nodeIdx % nodeColorSchemes.length];
+                          const nodeColorScheme = getNodeColorScheme(node.uuid);
                           
                           let strokeColor: string;
                           if (selectedMetrics.length === 1) {
@@ -1989,9 +2114,9 @@ const TaskDisplay: React.FC<TaskDisplayProps> = ({ nodes, liveData }) => {
                   {nodes.filter(node => {
                     const stats = nodeStatistics[node.uuid];
                     return stats && (taskMode === "ping" ? stats.validSamples > 0 : Object.keys(stats.metrics || {}).length > 0);
-                  }).slice(0, 20).map((node, idx) => {
+                  }).slice(0, 20).map((node) => {
                     const isHidden = hiddenNodes[node.uuid];
-                    const colorScheme = nodeColorSchemes[idx % nodeColorSchemes.length];
+                    const colorScheme = getNodeColorScheme(node.uuid);
                     const stats = nodeStatistics[node.uuid];
                     const hasData = stats && (taskMode === "ping" ? stats.current !== null : Object.keys(stats.metrics || {}).length > 0);
                     

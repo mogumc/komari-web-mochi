@@ -21,6 +21,7 @@ import { ModernCard } from "./NodeModernCard";
 import NodeCompactCard from "./NodeCompactCard";
 import NodeEarthView from "./NodeEarthView";
 import ViewModeSelector from "./ViewModeSelector";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
 
 export type ViewMode = "modern" | "compact" | "classic" | "detailed" | "earth";
 
@@ -33,15 +34,23 @@ interface NodeDisplayProps {
 const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTrafficText }) => {
   const [t] = useTranslation();
   const isMobile = useIsMobile();
+  const { publicInfo } = usePublicInfo();
+  
+  // 获取配置的默认视图模式，并转换为小写
+  const configDefaultMode = publicInfo?.theme_settings?.defaultViewMode?.toLowerCase() as ViewMode | undefined;
+  const defaultMode: ViewMode = configDefaultMode && 
+    ["modern", "compact", "classic", "detailed", "task", "earth"].includes(configDefaultMode) 
+    ? configDefaultMode : "modern";
+  
   const [viewMode, setViewMode] = useLocalStorage<ViewMode>(
     "nodeViewMode",
-    "modern"
+    defaultMode
   );
-  
+
   // 确保 viewMode 总是有效值
   const validViewModes: ViewMode[] = ["modern", "compact", "classic", "detailed", "earth"];
   const safeViewMode = validViewModes.includes(viewMode) ? viewMode : "modern";
-  
+
   // 组件初始化优化
   useEffect(() => {
     // 确保viewMode有效

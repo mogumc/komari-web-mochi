@@ -13,6 +13,13 @@ export interface PublicInfo {
   record_preserve_time: number;
   sitename: string;
   private_site: boolean;
+  theme_settings: {
+    enableVirtualScroll?: boolean;
+    offlineNodePosition?: string;
+    taiwanFlagDisplay?: string;
+    defaultViewMode?: string;
+    [key: string]: any;
+  };
   [property: string]: any;
 }
 

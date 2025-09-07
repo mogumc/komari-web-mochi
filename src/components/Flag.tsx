@@ -1,5 +1,7 @@
 import * as React from "react";
 import { Box } from "@radix-ui/themes";
+import { getFlagDisplay } from "@/utils/flagHelper";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
 
 interface FlagProps {
   flag: string; // 地区代码 (例如 "SG", "US") 或旗帜 emoji (例如 "🇸🇬", "🇺🇳")
@@ -45,23 +47,28 @@ const getCountryCodeFromFlagEmoji = (emoji: string): string | null => {
 };
 
 const Flag = React.memo(({ flag, size }: FlagProps) => {
+  const { publicInfo } = usePublicInfo();
+  
+  // 应用台湾地区旗帜显示配置
+  const displayFlag = getFlagDisplay(flag, publicInfo);
+  
   let imgSrc: string;
   let altText: string;
   let resolvedFlagFileName: string; // 最终用于构建文件名的字符串 (例如 "SG", "UN")
 
   // 1. **算法处理：** 尝试将输入作为由区域指示符组成的旗帜 emoji 进行转换
-  const countryCodeFromEmoji = getCountryCodeFromFlagEmoji(flag);
+  const countryCodeFromEmoji = getCountryCodeFromFlagEmoji(displayFlag);
 
   if (countryCodeFromEmoji) {
     resolvedFlagFileName = countryCodeFromEmoji; // 例如，如果输入是 "🇸🇬"，则这里得到 "SG"
   }
   // 2. **直接识别：** 如果不是区域指示符 emoji，检查是否是两字母的字母组合（ISO 国家代码）
-  else if (flag && flag.length === 2 && /^[a-zA-Z]{2}$/.test(flag)) {
-    resolvedFlagFileName = flag.toUpperCase(); // 例如，如果输入是 "us"，则这里得到 "US"
+  else if (displayFlag && displayFlag.length === 2 && /^[a-zA-Z]{2}$/.test(displayFlag)) {
+    resolvedFlagFileName = displayFlag.toUpperCase(); // 例如，如果输入是 "us"，则这里得到 "US"
   }
   // 3. **硬编码处理特殊 Emoji：** 对于无法通过算法转换的特殊 emoji（例如 🇺🇳, 🌐），
   //    因为它们不符合区域指示符模式，且不使用映射表，只能通过硬编码来识别。
-  else if (flag === "🇺🇳" || flag === "🌐") {
+  else if (displayFlag === "🇺🇳" || displayFlag === "🌐") {
     resolvedFlagFileName = "UN"; // 例如，如果输入是 "🇺🇳"，则这里得到 "UN"
   }
   // 4. **回退：** 对于任何其他无法识别的输入（包括不符合上述规则的 emoji 或非两字母代码），

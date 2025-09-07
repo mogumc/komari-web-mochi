@@ -1,9 +1,42 @@
 {
-    "name": "Komari Web Mochi",
-    "short": "Mochi", 
+    "name": "Komari Web Mochi Dev",
+    "short": "MochiDev", 
     "description": "Another Komari Web Theme with enhanced mobile UI and beautiful design",
     "version": "1.0.6",
     "author": "Mochi DEV Team",
-    "url": "https://github.com/svnmoe/komari-web-mochi",
-    "preview": "preview.png"
+    "url": "https://github.com/mogumc/komari-web-mochi",
+    "preview": "preview.png",
+    "configuration":{
+        "type":"managed",
+        "data":[
+            {
+                "name":"主页面",
+                "type":"title"
+            },
+            {
+                "key":"offlineNodePosition",
+                "name":"离线节点位置",
+                "type":"select",
+                "options":"前面,原位置,后面",
+                "default":"后面",
+                "help":"设置离线节点的显示位置。前面：离线节点显示在最前；原位置：按权重排序不区分在线状态；后面：离线节点显示在最后。"
+            },
+            {
+                "key":"taiwanFlagDisplay",
+                "name":"台湾地区旗帜显示",
+                "type":"select",
+                "options":"中国大陆旗帜,不显示,原版",
+                "default":"中国大陆旗帜",
+                "help":"设置台湾地区节点的旗帜显示方式。中国大陆旗帜：显示为CN旗帜；不显示：显示为UN旗帜；原版：显示TW地区旗帜。"
+            },
+            {
+                "key":"defaultViewMode",
+                "name":"默认视图模式",
+                "type":"select",
+                "options":"Modern,Compact,Classic,Detailed,Task,Earth",
+                "default":"Modern",
+                "help":"设置首页的默认视图模式。Modern：现代卡片视图；Compact：紧凑列表视图；Classic：经典网格视图；Detailed：详细表格视图；Task：任务视图；Earth：地球视图。"
+            }
+        ]
+    }
 }

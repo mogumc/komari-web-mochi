@@ -190,6 +190,11 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
         return res.json();
       })
       .then((resp: PingApiResp) => {
+        console.log('[PingChartV2] Raw API Response:', resp);
+        console.log('[PingChartV2] Records count:', resp.data?.records?.length);
+        console.log('[PingChartV2] Tasks:', resp.data?.tasks);
+        console.log('[PingChartV2] Sample records (first 5):', resp.data?.records?.slice(0, 5));
+        
         const records = resp.data?.records || [];
         records.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
         setRemoteData(records);
@@ -209,12 +214,17 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
 
     const grouped: Record<string, any> = {};
     const timeKeys: number[] = [];
+    
+    // 根据任务间隔动态设置容差（interval * 1000毫秒）
+    const taskInterval = tasks[0]?.interval || 60;
+    const groupingTolerance = taskInterval * 1000;
 
     for (const rec of data) {
       const t = new Date(rec.time).getTime();
       let foundKey = null;
+      // 使用动态容差，以合并相近的时间点
       for (const key of timeKeys) {
-        if (Math.abs(key - t) <= 1500) {
+        if (Math.abs(key - t) <= groupingTolerance) {
           foundKey = key;
           break;
         }
@@ -224,7 +234,7 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
         grouped[useKey] = { time: new Date(useKey).toISOString() };
         if (foundKey === null) timeKeys.push(useKey);
       }
-      grouped[useKey][rec.task_id] = rec.value;
+      grouped[useKey][rec.task_id] = rec.value === -1 ? null : rec.value;
     }
 
     let full = Object.values(grouped).sort(
@@ -235,7 +245,7 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
       full,
       tasks[0]?.interval || 60,
       hours * 60 * 60,
-      tasks[0]?.interval ? tasks[0]?.interval * 1.2 : 60 * 1.2
+      tasks[0]?.interval || 60  // 容差改为 interval * 1
     );
     
     return full1;
@@ -246,7 +256,9 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
     let full = midData;
     
     // 应用数据采样以减少渲染的点数
-    full = sampleDataByRetention(full, hours);
+    // 传入任务间隔作为最小采样间隔，防止过度采样
+    const taskInterval = tasks[0]?.interval || 60;
+    full = sampleDataByRetention(full, hours, false, taskInterval);
     
     // 如果开启削峰，应用削峰处理
     if (cutPeak && tasks.length > 0) {
@@ -259,9 +271,24 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
 
   // 分批渲染数据
   const chartData = useMemo(() => {
-    if (renderedDataCount === 0) return [];
-    return fullChartData.slice(0, renderedDataCount);
-  }, [fullChartData, renderedDataCount]);
+    if (!fullChartData.length || renderedDataCount === 0) return [];
+    const data = fullChartData.slice(0, renderedDataCount);
+    
+    // 调试：检查实际渲染的数据
+    if (data.length > 0 && data.length === fullChartData.length) {
+      console.log('[PingChartV2] Chart data ready:', {
+        dataLength: data.length,
+        samplePoint: data[0],
+        hasTaskData: tasks.map(t => ({
+          id: t.id,
+          name: t.name,
+          hasData: data.some(d => d[t.id] !== null && d[t.id] !== undefined)
+        }))
+      });
+    }
+    
+    return data;
+  }, [fullChartData, renderedDataCount, tasks]);
 
   // 分批渲染实现
   useEffect(() => {
@@ -311,12 +338,15 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
         map.set(rec.task_id, rec);
       }
     }
-    return tasks.map((task, idx) => ({
-      ...task,
-      value: map.get(task.id)?.value ?? null,
-      time: map.get(task.id)?.time ?? null,
-      color: colorSchemes[idx % colorSchemes.length],
-    }));
+    return tasks.map((task, idx) => {
+      const rawValue = map.get(task.id)?.value ?? null;
+      return {
+        ...task,
+        value: rawValue === -1 ? null : rawValue,
+        time: map.get(task.id)?.time ?? null,
+        color: colorSchemes[idx % colorSchemes.length],
+      };
+    });
   }, [remoteData, tasks]);
 
   // 计算统计信息
@@ -905,7 +935,7 @@ const PingChartV2 = ({ uuid }: { uuid: string }) => {
       )}
 
       {/* 主图表 */}
-      {!loading && !error && chartData.length > 0 && (
+      {!loading && !error && fullChartData.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
