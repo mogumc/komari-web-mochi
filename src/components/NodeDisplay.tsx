@@ -38,8 +38,15 @@ const NodeDisplay: React.FC<NodeDisplayProps> = ({ nodes, liveData, forceShowTra
   
   // 获取配置的默认视图模式，并转换为小写
   const configDefaultMode = publicInfo?.theme_settings?.defaultViewMode?.toLowerCase() as ViewMode | undefined;
+  const canViewMode = publicInfo?.theme_settings?.canViewMode;
+  const defaultModeList = ["modern", "compact", "classic", "detailed", "task", "earth"];
+  var ModeList = defaultModeList;
+  if(!canViewMode) {
+    const configMode = publicInfo?.theme_settings?.defaultViewMode?.toLowerCase() as string | "modern"
+    ModeList = [configMode, "earth"];
+  }
   const defaultMode: ViewMode = configDefaultMode && 
-    ["modern", "compact", "classic", "detailed", "task", "earth"].includes(configDefaultMode) 
+    ModeList.includes(configDefaultMode) 
     ? configDefaultMode : "modern";
   
   const [viewMode, setViewMode] = useLocalStorage<ViewMode>(

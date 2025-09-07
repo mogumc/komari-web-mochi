@@ -3,6 +3,7 @@ import { IconButton, Flex } from "@radix-ui/themes";
 import { Grid2x2, Grid3x3, Rows3, Table2, Earth } from "lucide-react";
 import type { ViewMode } from "./NodeDisplay";
 import "./ViewModeSelector.css";
+import { usePublicInfo } from "@/contexts/PublicInfoContext";
 
 interface ViewModeSelectorProps {
   currentMode: ViewMode;
@@ -22,13 +23,28 @@ const ViewModeSelector: React.FC<ViewModeSelectorProps> = ({
   onModeChange,
   isMobile = false,
 }) => {
-  const modeOptions: ModeOption[] = [
+  const { publicInfo } = usePublicInfo();
+  const canViewMode = publicInfo?.theme_settings?.canViewMode;
+  
+  let modeOptions: ModeOption[] = [
     { value: "modern", label: "Modern", mobileSupported: true, icon:Grid2x2 },
     { value: "compact", label: "Compact", mobileSupported: true, icon:Rows3 },
     { value: "classic", label: "Classic", mobileSupported: true, icon:Grid3x3 },
     { value: "detailed", label: "Detailed", mobileSupported: true, icon:Table2 },
     { value: "earth", label: "Earth", mobileSupported: true, icon:Earth },
   ];
+
+  if(!canViewMode) {
+    const configMode = (publicInfo?.theme_settings?.defaultViewMode?.toLowerCase() as string) || "modern";
+    if (configMode === 'earth') {
+      modeOptions = modeOptions.filter(option => option.value === 'earth');
+    } else {
+      modeOptions = modeOptions.filter(
+        option => option.value === configMode || option.value === 'earth'
+      );
+    }
+  } 
+
 
   // 过滤移动端不支持的模式
   const availableOptions = isMobile

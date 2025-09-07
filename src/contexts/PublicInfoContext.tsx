@@ -18,6 +18,7 @@ export interface PublicInfo {
     offlineNodePosition?: string;
     taiwanFlagDisplay?: string;
     defaultViewMode?: string;
+    canViewMode?:boolean;
     [key: string]: any;
   };
   [property: string]: any;
