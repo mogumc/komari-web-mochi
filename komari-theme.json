@@ -2,7 +2,7 @@
     "name": "Komari Web Mochi Dev",
     "short": "MochiDev", 
     "description": "Another Komari Web Theme with enhanced mobile UI and beautiful design",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "author": "Mochi DEV Team",
     "url": "https://github.com/mogumc/komari-web-mochi",
     "preview": "preview.png",
@@ -37,7 +37,16 @@
                 "default":"Modern",
                 "help":"设置首页的默认视图模式。Modern：现代卡片视图；Compact：紧凑列表视图；Classic：经典网格视图；Detailed：详细表格视图；Task：任务视图；Earth：地球视图。"
             },
-            { "key": "canViewMode", "name": "允许修改视图模式", "type": "switch", "default": true, "help": "关闭后只允许切换默认视图与地球视图(无论是否登录)" }
+            { "key": "canViewMode", "name": "允许修改视图模式", "type": "switch", "default": true, "help": "关闭后只允许切换默认视图与地球视图(无论是否登录)" },
+            {
+                "key":"defaultBgMode",
+                "name":"默认背景模式",
+                "type":"select",
+                "options":"Classic,Image,Video",
+                "default":"Classic",
+                "help":"设置首页的默认背景模式。Classic：纯色背景；Image：图片背景；Video：动态背景"
+            },
+            { "key": "BgSet", "name": "背景参数", "type": "string", "default": true, "help": " 留空将使用默认配置,填写后将关闭用户刷新背景功能。Classic：背景RGB值；Image：图片url；Video：视频url" }
         ]
     }
 }
